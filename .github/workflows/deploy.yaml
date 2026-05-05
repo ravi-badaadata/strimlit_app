@@ -10,15 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1) Checkout
+    # 1. Checkout code
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # 2) Install Snowflake CLI
+    # 2. Install Snowflake CLI
     - name: Install Snowflake CLI
       run: pip install snowflake-cli-labs
 
-    # 3) Configure connection (NON-INTERACTIVE)
+    # 3. Configure Snowflake connection (FIXED - NO DUPLICATE)
     - name: Configure Snowflake connection
       env:
         SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
@@ -33,15 +33,15 @@ jobs:
           --database "${{ secrets.SNOWFLAKE_DATABASE }}" \
           --schema "${{ secrets.SNOWFLAKE_SCHEMA }}"
 
-    # 4) Upload app folder
-    - name: Deploy app to stage
+    # 4. Upload app folder to Snowflake stage
+    - name: Deploy app to Snowflake stage
       run: |
         snow stage copy app @streamlit_stage \
           --overwrite \
           --connection my_conn
 
-    # 5) Upload requirements
-    - name: Upload requirements
+    # 5. Upload requirements file
+    - name: Upload requirements.txt
       run: |
         snow stage copy requirements.txt @streamlit_stage \
           --overwrite \
