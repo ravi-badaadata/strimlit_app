@@ -5,7 +5,6 @@ st.title("My Snowflake Streamlit App 🚀")
 
 session = get_session()
 
-query = "SELECT CURRENT_DATE() AS TODAY"
-df = session.sql(query).to_pandas()
+df = session.sql("SELECT CURRENT_USER(), CURRENT_DATABASE()").to_pandas()
 
 st.dataframe(df)
