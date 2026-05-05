@@ -10,24 +10,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Checkout code
+    # 1. Checkout repo
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # 2. Install SnowSQL (NON-INTERACTIVE FIXED)
-    - name: Install SnowSQL
+    # 2. Setup Python
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # 3. Install Snowflake connector
+    - name: Install dependencies
       run: |
-        curl -L -o snowsql.bash https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql-1.2.32-linux_x86_64.bash
-        chmod +x snowsql.bash
-        ./snowsql.bash -y
-        echo "$HOME/.snowsql/bin" >> $GITHUB_PATH
+        pip install snowflake-connector-python
 
-    # 3. Verify installation (optional but useful)
-    - name: Verify SnowSQL
-      run: snowsql -v
-
-    # 4. Deploy app to Snowflake
-    - name: Upload files to Snowflake stage
+    # 4. Upload files to Snowflake stage using Python (NO CLI ISSUES)
+    - name: Deploy to Snowflake
       env:
         SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
         SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
@@ -37,15 +36,30 @@ jobs:
         SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
         SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
       run: |
-        snowsql -a $SNOWFLAKE_ACCOUNT \
-                -u $SNOWFLAKE_USER \
-                -p $SNOWFLAKE_PASSWORD \
-                -r $SNOWFLAKE_ROLE \
-                -w $SNOWFLAKE_WAREHOUSE \
-                -d $SNOWFLAKE_DATABASE \
-                -s $SNOWFLAKE_SCHEMA <<EOF
+        python <<EOF
+        import snowflake.connector
+        import os
 
-        PUT file://app @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-        PUT file://requirements.txt @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+        conn = snowflake.connector.connect(
+            account=os.environ['SNOWFLAKE_ACCOUNT'],
+            user=os.environ['SNOWFLAKE_USER'],
+            password=os.environ['SNOWFLAKE_PASSWORD'],
+            role=os.environ['SNOWFLAKE_ROLE'],
+            warehouse=os.environ['SNOWFLAKE_WAREHOUSE'],
+            database=os.environ['SNOWFLAKE_DATABASE'],
+            schema=os.environ['SNOWFLAKE_SCHEMA']
+        )
 
+        cursor = conn.cursor()
+
+        # Upload app folder
+        cursor.execute("PUT file://app @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE")
+
+        # Upload requirements
+        cursor.execute("PUT file://requirements.txt @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE")
+
+        print("✅ Deployment successful")
+
+        cursor.close()
+        conn.close()
         EOF
