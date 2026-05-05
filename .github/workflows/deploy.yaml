@@ -14,15 +14,20 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # 2. Install SnowSQL (stable)
+    # 2. Install SnowSQL (NON-INTERACTIVE FIXED)
     - name: Install SnowSQL
       run: |
-        curl -O https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql-1.2.32-linux_x86_64.bash
-        bash snowsql-1.2.32-linux_x86_64.bash
+        curl -L -o snowsql.bash https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql-1.2.32-linux_x86_64.bash
+        chmod +x snowsql.bash
+        ./snowsql.bash -y
         echo "$HOME/.snowsql/bin" >> $GITHUB_PATH
 
-    # 3. Upload files to Snowflake stage
-    - name: Deploy to Snowflake
+    # 3. Verify installation (optional but useful)
+    - name: Verify SnowSQL
+      run: snowsql -v
+
+    # 4. Deploy app to Snowflake
+    - name: Upload files to Snowflake stage
       env:
         SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
         SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
