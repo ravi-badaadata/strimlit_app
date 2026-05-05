@@ -3,44 +3,44 @@ name: Deploy Streamlit to Snowflake
 on:
   push:
     branches:
-      - main   # runs after merge to main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout code
+    # 1) Checkout
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # 2️⃣ Install Snowflake CLI
+    # 2) Install Snowflake CLI
     - name: Install Snowflake CLI
       run: pip install snowflake-cli-labs
 
-    # 3️⃣ Configure Snowflake connection (FIXED)
+    # 3) Configure connection (NON-INTERACTIVE)
     - name: Configure Snowflake connection
       env:
         SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
       run: |
         snow connection add \
           --connection-name my_conn \
-          --account ${{ secrets.SNOWFLAKE_ACCOUNT }} \
-          --user ${{ secrets.SNOWFLAKE_USER }} \
-          --password $SNOWFLAKE_PASSWORD \
-          --role ${{ secrets.SNOWFLAKE_ROLE }} \
-          --warehouse ${{ secrets.SNOWFLAKE_WAREHOUSE }} \
-          --database ${{ secrets.SNOWFLAKE_DATABASE }} \
-          --schema ${{ secrets.SNOWFLAKE_SCHEMA }}
+          --account "${{ secrets.SNOWFLAKE_ACCOUNT }}" \
+          --user "${{ secrets.SNOWFLAKE_USER }}" \
+          --password "$SNOWFLAKE_PASSWORD" \
+          --role "${{ secrets.SNOWFLAKE_ROLE }}" \
+          --warehouse "${{ secrets.SNOWFLAKE_WAREHOUSE }}" \
+          --database "${{ secrets.SNOWFLAKE_DATABASE }}" \
+          --schema "${{ secrets.SNOWFLAKE_SCHEMA }}"
 
-    # 4️⃣ Upload app folder to Snowflake stage
-    - name: Deploy app to Snowflake stage
+    # 4) Upload app folder
+    - name: Deploy app to stage
       run: |
         snow stage copy app @streamlit_stage \
           --overwrite \
           --connection my_conn
 
-    # 5️⃣ Upload requirements.txt
+    # 5) Upload requirements
     - name: Upload requirements
       run: |
         snow stage copy requirements.txt @streamlit_stage \
