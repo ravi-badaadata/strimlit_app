@@ -14,35 +14,33 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # 2. Install Snowflake CLI
-    - name: Install Snowflake CLI
-      run: pip install snowflake-cli-labs
+    # 2. Install SnowSQL (stable)
+    - name: Install SnowSQL
+      run: |
+        curl -O https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql-1.2.32-linux_x86_64.bash
+        bash snowsql-1.2.32-linux_x86_64.bash
+        echo "$HOME/.snowsql/bin" >> $GITHUB_PATH
 
-    # 3. Configure Snowflake connection (FIXED - NO DUPLICATE)
-    - name: Configure Snowflake connection
+    # 3. Upload files to Snowflake stage
+    - name: Deploy to Snowflake
       env:
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
         SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+        SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+        SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+        SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
       run: |
-        snow connection add \
-          --connection-name my_conn \
-          --account "${{ secrets.SNOWFLAKE_ACCOUNT }}" \
-          --user "${{ secrets.SNOWFLAKE_USER }}" \
-          --password "$SNOWFLAKE_PASSWORD" \
-          --role "${{ secrets.SNOWFLAKE_ROLE }}" \
-          --warehouse "${{ secrets.SNOWFLAKE_WAREHOUSE }}" \
-          --database "${{ secrets.SNOWFLAKE_DATABASE }}" \
-          --schema "${{ secrets.SNOWFLAKE_SCHEMA }}"
+        snowsql -a $SNOWFLAKE_ACCOUNT \
+                -u $SNOWFLAKE_USER \
+                -p $SNOWFLAKE_PASSWORD \
+                -r $SNOWFLAKE_ROLE \
+                -w $SNOWFLAKE_WAREHOUSE \
+                -d $SNOWFLAKE_DATABASE \
+                -s $SNOWFLAKE_SCHEMA <<EOF
 
-    # 4. Upload app folder to Snowflake stage
-    - name: Deploy app to Snowflake stage
-      run: |
-        snow stage copy app @streamlit_stage \
-          --overwrite \
-          --connection my_conn
+        PUT file://app @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+        PUT file://requirements.txt @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 
-    # 5. Upload requirements file
-    - name: Upload requirements.txt
-      run: |
-        snow stage copy requirements.txt @streamlit_stage \
-          --overwrite \
-          --connection my_conn
+        EOF
