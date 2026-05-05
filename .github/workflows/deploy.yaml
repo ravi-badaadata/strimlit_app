@@ -1,4 +1,4 @@
-name: Deploy to Snowflake
+name: Deploy Streamlit to Snowflake
 
 on:
   push:
@@ -10,27 +10,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install SnowSQL
+    - name: Install Snowflake CLI
       run: pip install snowflake-cli-labs
 
-    - name: Upload app folder to Snowflake
-      env:
-        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-        SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-        SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+    - name: Configure connection
       run: |
-        snowsql -a $SNOWFLAKE_ACCOUNT -u $SNOWFLAKE_USER -p $SNOWFLAKE_PASSWORD <<EOF
+        snow connection add my_conn \
+          --account ${{ secrets.SNOWFLAKE_ACCOUNT }} \
+          --user ${{ secrets.SNOWFLAKE_USER }} \
+          --password ${{ secrets.SNOWFLAKE_PASSWORD }}
 
-        USE ROLE ${{ secrets.SNOWFLAKE_ROLE }};
-        USE DATABASE ${{ secrets.SNOWFLAKE_DATABASE }};
-        USE SCHEMA ${{ secrets.SNOWFLAKE_SCHEMA }};
-
-        -- Upload full app folder
-        PUT file://app @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-
-        PUT file://requirements.txt @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-
-        EOF
+    - name: Upload app to stage
+      run: |
+        snow stage copy app @streamlit_stage --overwrite --connection my_conn
