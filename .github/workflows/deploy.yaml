@@ -1,28 +1,32 @@
-name: Deploy Streamlit to Snowflake
+name: Deploy Streamlit
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
     - name: Install Snowflake CLI
       run: pip install snowflake-cli-labs
 
     - name: Configure connection
+      env:
+        SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
       run: |
-        snow connection add my_conn \
+        snow connection add \
+          --connection-name my_conn \
           --account ${{ secrets.SNOWFLAKE_ACCOUNT }} \
           --user ${{ secrets.SNOWFLAKE_USER }} \
-          --password ${{ secrets.SNOWFLAKE_PASSWORD }}
+          --warehouse ${{ secrets.SNOWFLAKE_WAREHOUSE }} \
+          --database ${{ secrets.SNOWFLAKE_DATABASE }} \
+          --schema ${{ secrets.SNOWFLAKE_SCHEMA }} \
+          --password $SNOWFLAKE_PASSWORD
 
-    - name: Upload app to stage
+    - name: Deploy to stage
       run: |
         snow stage copy app @streamlit_stage --overwrite --connection my_conn
