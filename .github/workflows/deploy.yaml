@@ -64,7 +64,12 @@ jobs:
 
                   # preserve folder structure
                   relative_path = os.path.relpath(full_path, "app")
-                  stage_path = f"@streamlit_stage/app/{relative_path}"
+                  stage_dir = os.path.dirname(relative_path)
+
+                 if stage_dir == "":
+                     stage_path = "@streamlit_stage/app"
+                 else:
+                     stage_path = f"@streamlit_stage/app/{stage_dir}"
 
                   print("⬆ Upload:", full_path, "→", stage_path)
 
