@@ -1,58 +1,84 @@
-- name: Deploy to Snowflake
-  env:
-    SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-    SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-    SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-    SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
-    SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-    SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
-    SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
-  run: |
-    python <<EOF
-    import snowflake.connector
-    import os
-    import sys
+name: Deploy Streamlit to Snowflake
 
-    print("📂 Current working dir:", os.getcwd())
-    print("📂 Files in root:", os.listdir())
+on:
+  push:
+    branches:
+      - main
 
-    # ✅ Check app folder exists
-    if not os.path.exists("app"):
-        print("❌ ERROR: 'app' folder NOT found in repo")
-        sys.exit(1)
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-    if not os.path.exists("requirements.txt"):
-        print("❌ ERROR: 'requirements.txt' NOT found")
-        sys.exit(1)
+    steps:
+      # 1. Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    print("✅ app folder exists")
+      # 2. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-    conn = snowflake.connector.connect(
-        account=os.environ['SNOWFLAKE_ACCOUNT'],
-        user=os.environ['SNOWFLAKE_USER'],
-        password=os.environ['SNOWFLAKE_PASSWORD'],
-        role=os.environ['SNOWFLAKE_ROLE'],
-        warehouse=os.environ['SNOWFLAKE_WAREHOUSE'],
-        database=os.environ['SNOWFLAKE_DATABASE'],
-        schema=os.environ['SNOWFLAKE_SCHEMA']
-    )
+      # 3. Install dependency
+      - name: Install dependencies
+        run: pip install snowflake-connector-python
 
-    cursor = conn.cursor()
+      # 4. Deploy (INLINE PYTHON - FIXED INDENTATION)
+      - name: Deploy to Snowflake
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+        run: |
+          python <<EOF
+          import snowflake.connector
+          import os
 
-    # ✅ Upload app files (with absolute path)
-    for root, dirs, files in os.walk("app"):
-        for file in files:
-            full_path = os.path.abspath(os.path.join(root, file))
-            print("⬆ Uploading:", full_path)
-            cursor.execute(f"PUT file://{full_path} @streamlit_stage/app AUTO_COMPRESS=FALSE OVERWRITE=TRUE")
+          print("📂 Current dir:", os.getcwd())
+          print("📂 Root files:", os.listdir())
 
-    # ✅ Upload requirements.txt
-    req_path = os.path.abspath("requirements.txt")
-    print("⬆ Uploading:", req_path)
-    cursor.execute(f"PUT file://{req_path} @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE")
+          if not os.path.exists("app"):
+              raise Exception("❌ app folder missing")
 
-    print("✅ Upload complete")
+          conn = snowflake.connector.connect(
+              account=os.environ['SNOWFLAKE_ACCOUNT'],
+              user=os.environ['SNOWFLAKE_USER'],
+              password=os.environ['SNOWFLAKE_PASSWORD'],
+              role=os.environ['SNOWFLAKE_ROLE'],
+              warehouse=os.environ['SNOWFLAKE_WAREHOUSE'],
+              database=os.environ['SNOWFLAKE_DATABASE'],
+              schema=os.environ['SNOWFLAKE_SCHEMA']
+          )
 
-    cursor.close()
-    conn.close()
-    EOF
+          cursor = conn.cursor()
+
+          print("🔍 Checking stage...")
+          cursor.execute("LIST @streamlit_stage")
+          print("✅ Stage accessible")
+
+          # Upload app files
+          for root, dirs, files in os.walk("app"):
+              for file in files:
+                  full_path = os.path.abspath(os.path.join(root, file))
+                  print("⬆ Upload:", full_path)
+                  cursor.execute(
+                      f"PUT file://{full_path} @streamlit_stage/app AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+                  )
+
+          # Upload requirements
+          req_path = os.path.abspath("requirements.txt")
+          print("⬆ Upload:", req_path)
+          cursor.execute(
+              f"PUT file://{req_path} @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+          )
+
+          print("✅ Upload completed")
+
+          cursor.close()
+          conn.close()
+          EOF
