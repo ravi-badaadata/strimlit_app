@@ -11,9 +11,21 @@
     python <<EOF
     import snowflake.connector
     import os
+    import sys
 
     print("📂 Current working dir:", os.getcwd())
     print("📂 Files in root:", os.listdir())
+
+    # ✅ Check app folder exists
+    if not os.path.exists("app"):
+        print("❌ ERROR: 'app' folder NOT found in repo")
+        sys.exit(1)
+
+    if not os.path.exists("requirements.txt"):
+        print("❌ ERROR: 'requirements.txt' NOT found")
+        sys.exit(1)
+
+    print("✅ app folder exists")
 
     conn = snowflake.connector.connect(
         account=os.environ['SNOWFLAKE_ACCOUNT'],
@@ -27,22 +39,16 @@
 
     cursor = conn.cursor()
 
-    # Absolute paths (IMPORTANT)
-    base = os.getcwd()
-    app_dir = os.path.join(base, "app")
+    # ✅ Upload app files (with absolute path)
+    for root, dirs, files in os.walk("app"):
+        for file in files:
+            full_path = os.path.abspath(os.path.join(root, file))
+            print("⬆ Uploading:", full_path)
+            cursor.execute(f"PUT file://{full_path} @streamlit_stage/app AUTO_COMPRESS=FALSE OVERWRITE=TRUE")
 
-    print("📂 App dir:", app_dir)
-    print("📂 App files:", os.listdir(app_dir))
-
-    # Upload all files inside app folder
-    for file in os.listdir(app_dir):
-        full_path = os.path.join(app_dir, file)
-        print("Uploading:", full_path)
-        cursor.execute(f"PUT file://{full_path} @streamlit_stage/app AUTO_COMPRESS=FALSE OVERWRITE=TRUE")
-
-    # Upload requirements
-    req_path = os.path.join(base, "requirements.txt")
-    print("Uploading:", req_path)
+    # ✅ Upload requirements.txt
+    req_path = os.path.abspath("requirements.txt")
+    print("⬆ Uploading:", req_path)
     cursor.execute(f"PUT file://{req_path} @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE")
 
     print("✅ Upload complete")
