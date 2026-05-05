@@ -1,0 +1,36 @@
+name: Deploy to Snowflake
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install SnowSQL
+      run: pip install snowflake-cli-labs
+
+    - name: Upload app folder to Snowflake
+      env:
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+        SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+      run: |
+        snowsql -a $SNOWFLAKE_ACCOUNT -u $SNOWFLAKE_USER -p $SNOWFLAKE_PASSWORD <<EOF
+
+        USE ROLE ${{ secrets.SNOWFLAKE_ROLE }};
+        USE DATABASE ${{ secrets.SNOWFLAKE_DATABASE }};
+        USE SCHEMA ${{ secrets.SNOWFLAKE_SCHEMA }};
+
+        -- Upload full app folder
+        PUT file://app @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+        PUT file://requirements.txt @streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+        EOF
