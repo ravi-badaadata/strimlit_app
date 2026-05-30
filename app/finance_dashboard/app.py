@@ -1,5 +1,5 @@
 import streamlit as st
 
-st.title("Sales Dashboard")
+st.title("finance Dashboard")
 
 st.write("Sale FINANCE Application")
