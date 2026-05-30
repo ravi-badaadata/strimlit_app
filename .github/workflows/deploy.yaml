@@ -43,7 +43,7 @@ jobs:
 
           DEPLOYED=0
 
-          for app_dir in apps/*/; do
+          for app_dir in app/*/; do
             APP_NAME=$(basename $app_dir)
 
             # Check if any file in this app folder changed
