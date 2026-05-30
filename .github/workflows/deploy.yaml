@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2          # Need previous commit to diff against
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,13 +44,20 @@ jobs:
           DEPLOYED=0
 
           for app_dir in app/*/; do
-            APP_NAME=$(basename $app_dir)
+            APP_NAME=$(basename "$app_dir")
 
             # Check if any file in this app folder changed
             if echo "$CHANGED_FILES" | grep -q "^app/$APP_NAME/"; then
               echo "✅ Changes detected in $APP_NAME — deploying..."
-              snow streamlit deploy --replace --connection default \
-                --project-definition-file $app_dir/snowflake.yml
+
+              (
+                cd "$app_dir"
+
+                snow streamlit deploy \
+                  --replace \
+                  --connection default
+              )
+
               DEPLOYED=$((DEPLOYED + 1))
             else
               echo "⏭️  No changes in $APP_NAME — skipping"
