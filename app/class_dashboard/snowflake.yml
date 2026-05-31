@@ -1,0 +1,8 @@
+definition_version: 1
+
+streamlit:
+  name: CLASS_DASHBOARD_APP
+  stage: CLASS_DASHBOARD_STAGE
+  main_file: app.py
+  query_warehouse: COMPUTE_WH
+  title: "CLASS Dashboard"
